@@ -10,7 +10,7 @@ layout(binding = 0) uniform UniformBufferObjects {
 } ubo;
 
 void main(){
-    // vNormal = ubo.trans_inv_model * aNormal;
+    // vNormal = normalize(ubo.trans_inv_model * aNormal);
     vNormal = aNormal;
     gl_Position = ubo.proj_view_model * vec4(aPos, 1.0);
 }

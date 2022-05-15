@@ -28,6 +28,7 @@ namespace galaxysailing{
             }
             _createDescriptorSetLayout();
             _createDescriptorSets(image_count);
+            _createRenderTextureResouces();
             _createRenderPass();
             _createPipeline();
             _createFramebuffers();
@@ -38,6 +39,7 @@ namespace galaxysailing{
     private:
         void _createDescriptorSetLayout();
         void _createDescriptorSets(int image_count);
+        void _createRenderTextureResouces();
         void _createRenderPass();
         void _createPipeline();
         void _createFramebuffers();
@@ -52,7 +54,14 @@ namespace galaxysailing{
         VkDescriptorSetLayout m_descriptorSetLayout;
         std::vector<VkDescriptorSet> m_descriptorSets;
         
-        std::vector<VkFramebuffer> m_swapchainFramebuffers;
+        VkImage m_colorImage;
+        VkDeviceMemory m_colorImageMemory;
+        VkImageView m_colorImageView;
+        VkImage m_depthImage;
+        VkDeviceMemory m_depthImageMemory;
+        VkImageView m_depthImageView;
+
+        std::vector<VkFramebuffer> m_frambuffers;
     };
 
 }

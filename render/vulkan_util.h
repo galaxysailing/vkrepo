@@ -49,7 +49,8 @@ namespace galaxysailing
                                 VkDeviceMemory &memory,
                                 VkImageCreateFlags image_create_flags,
                                 uint32_t array_layers,
-                                uint32_t miplevels);
+                                uint32_t miplevels,
+                                VkSampleCountFlagBits samples);
         static VkImageView createImageView(VkDevice device,
                                            VkImage &image,
                                            VkFormat format,

@@ -9,7 +9,7 @@ namespace galaxysailing {
             VkRenderPassBeginInfo renderpass_begin_info {};
             renderpass_begin_info.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderpass_begin_info.renderPass        = m_renderPass;
-            renderpass_begin_info.framebuffer       = m_swapchainFramebuffers[image_index];
+            renderpass_begin_info.framebuffer       = m_frambuffers[image_index];
             renderpass_begin_info.renderArea.offset = {0, 0};
             renderpass_begin_info.renderArea.extent = ctx.m_swapchainExtent;
 
@@ -52,8 +52,17 @@ namespace galaxysailing {
     }
 
     void VulkanTestPass::recreateFramebuffers(){
-        for(int i = 0; i < m_swapchainFramebuffers.size(); ++i){
-            vkDestroyFramebuffer(m_vkContext->m_device, m_swapchainFramebuffers[i], nullptr);
+        auto& ctx = *m_vkContext;
+        vkDestroyImageView(ctx.m_device, m_colorImageView, nullptr);
+        vkDestroyImage(ctx.m_device, m_colorImage, nullptr);
+        vkFreeMemory(ctx.m_device, m_colorImageMemory, nullptr);
+
+        vkDestroyImageView(ctx.m_device, m_depthImageView, nullptr);
+        vkDestroyImage(ctx.m_device, m_depthImage, nullptr);
+        vkFreeMemory(ctx.m_device, m_depthImageMemory, nullptr);
+
+        for(int i = 0; i < m_frambuffers.size(); ++i){
+            vkDestroyFramebuffer(ctx.m_device, m_frambuffers[i], nullptr);
         }
         _createFramebuffers();
     }
@@ -108,10 +117,127 @@ namespace galaxysailing {
         }
     }
 
+    void VulkanTestPass::_createRenderTextureResouces() {
+        auto& ctx = *m_vkContext;
+        // color
+        VkFormat color_format = ctx.m_swapchainImageFormat;
+        VulkanUtil::createImage(ctx.m_physicalDevice,
+                             ctx.m_device,
+                             ctx.m_swapchainExtent.width,
+                             ctx.m_swapchainExtent.height,
+                             color_format,
+                             VK_IMAGE_TILING_OPTIMAL,
+                             VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                             m_colorImage,
+                             m_colorImageMemory,
+                             0,
+                             1,
+                             1,
+                             VK_SAMPLE_COUNT_4_BIT);
+
+        m_colorImageView = VulkanUtil::createImageView(ctx.m_device
+            , m_colorImage
+            , color_format
+            , VK_IMAGE_ASPECT_COLOR_BIT
+            , VK_IMAGE_VIEW_TYPE_2D
+            , 1
+            , 1);
+
+        //depth
+        VkFormat depth_format = ctx.m_depthImageFormat;
+        VulkanUtil::createImage(ctx.m_physicalDevice,
+                             ctx.m_device,
+                             ctx.m_swapchainExtent.width,
+                             ctx.m_swapchainExtent.height,
+                             depth_format,
+                             VK_IMAGE_TILING_OPTIMAL,
+                             VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,
+                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                             m_depthImage,
+                             m_depthImageMemory,
+                             0,
+                             1,
+                             1,
+                             VK_SAMPLE_COUNT_4_BIT);
+
+        m_depthImageView = VulkanUtil::createImageView(ctx.m_device
+            , m_depthImage
+            , depth_format
+            , VK_IMAGE_ASPECT_DEPTH_BIT
+            , VK_IMAGE_VIEW_TYPE_2D
+            , 1
+            , 1);
+
+    }
+
+    void VulkanTestPass::_createFramebuffers(){
+        auto& ctx = *m_vkContext;
+        m_frambuffers.resize(ctx.m_swapchainImageViews.size());
+
+        // create frame buffer for every imageview
+        for (size_t i = 0; i < ctx.m_swapchainImageViews.size(); ++i)
+        {
+            std::array<VkImageView, 3> attachments = {
+                m_colorImageView
+                , m_depthImageView
+                , ctx.m_swapchainImageViews[i]
+                
+            };
+
+            VkFramebufferCreateInfo framebuffer_ci{};
+            framebuffer_ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebuffer_ci.renderPass = m_renderPass;
+            framebuffer_ci.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebuffer_ci.pAttachments = attachments.data();
+            framebuffer_ci.width = ctx.m_swapchainExtent.width;
+            framebuffer_ci.height = ctx.m_swapchainExtent.height;
+            framebuffer_ci.layers = 1;
+
+            VK_CHECK_RESULT(vkCreateFramebuffer(ctx.m_device, &framebuffer_ci, nullptr, &m_frambuffers[i]));
+        }
+    }
+
     void VulkanTestPass::_createRenderPass(){
         VulkanContext& ctx = *m_vkContext;
 
-        // 1. attach ref
+        // 1. attach desc
+        // color attach
+        VkAttachmentDescription color_attach{};
+        color_attach.format = ctx.m_swapchainImageFormat;
+        // color_attach.samples = VK_SAMPLE_COUNT_1_BIT;
+        color_attach.samples = VK_SAMPLE_COUNT_4_BIT;
+        color_attach.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color_attach.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        // color_attach.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        color_attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        // depth attach
+        VkAttachmentDescription depth_attach{};
+        depth_attach.format = ctx.m_depthImageFormat;
+        // depth_attach.samples = VK_SAMPLE_COUNT_1_BIT;
+        depth_attach.samples = VK_SAMPLE_COUNT_4_BIT;
+        depth_attach.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_attach.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depth_attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attach.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentDescription color_attach_resolve{};
+        color_attach_resolve.format = ctx.m_swapchainImageFormat;
+        color_attach_resolve.samples = VK_SAMPLE_COUNT_1_BIT;
+        color_attach_resolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_attach_resolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attach_resolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_attach_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color_attach_resolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color_attach_resolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        // 2. attach ref
         // layout(location = 0) out vec4 FragColor
         VkAttachmentReference color_attach_ref{};
         color_attach_ref.attachment = 0;
@@ -119,15 +245,19 @@ namespace galaxysailing {
         VkAttachmentReference depth_attach_ref{};
         depth_attach_ref.attachment = 1;
         depth_attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference color_attach_resolve_ref{};
+        color_attach_resolve_ref.attachment = 2;
+        color_attach_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        // 2. subpass
+        // 3. subpass
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &color_attach_ref;
         subpass.pDepthStencilAttachment = &depth_attach_ref;
+        subpass.pResolveAttachments = &color_attach_resolve_ref;
 
-        // 3. subpass dependency
+        // 4. subpass dependency
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
@@ -139,32 +269,11 @@ namespace galaxysailing {
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | 
             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        // 4. attach desc
-        // color attach
-        VkAttachmentDescription color_attach{};
-        color_attach.format = ctx.m_swapchainImageFormat;
-        color_attach.samples = VK_SAMPLE_COUNT_1_BIT;
-        color_attach.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        color_attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color_attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        color_attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        color_attach.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        color_attach.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        // depth attach
-        VkAttachmentDescription depth_attach{};
-        depth_attach.format = ctx.m_depthImageFormat;
-        depth_attach.samples = VK_SAMPLE_COUNT_1_BIT;
-        depth_attach.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depth_attach.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depth_attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depth_attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depth_attach.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depth_attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
         // 5. create renderpass
-        std::array<VkAttachmentDescription, 2> attachments = { 
+        std::array<VkAttachmentDescription, 3> attachments = { 
             color_attach, 
-            depth_attach
+            depth_attach,
+            color_attach_resolve
         };
         VkRenderPassCreateInfo render_pass_ci{};
         render_pass_ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -259,7 +368,8 @@ namespace galaxysailing {
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampling.sampleShadingEnable = VK_FALSE;
-        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        // multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT;
         //multisampling.minSampleShading = 1.0f; // Optional
         //multisampling.pSampleMask = nullptr; // Optional
         //multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
@@ -340,30 +450,5 @@ namespace galaxysailing {
         // ---------------------clean up shader-------------------------------
         vkDestroyShaderModule(ctx.m_device, frag_shader_module, nullptr);
         vkDestroyShaderModule(ctx.m_device, vert_shader_module, nullptr);
-    }
-
-    void VulkanTestPass::_createFramebuffers(){
-        auto& ctx = *m_vkContext;
-        m_swapchainFramebuffers.resize(ctx.m_swapchainImageViews.size());
-
-        // create frame buffer for every imageview
-        for (size_t i = 0; i < ctx.m_swapchainImageViews.size(); ++i)
-        {
-            std::array<VkImageView, 2> attachments = {
-                ctx.m_swapchainImageViews[i]
-                , ctx.m_depthImageView
-            };
-
-            VkFramebufferCreateInfo framebuffer_ci{};
-            framebuffer_ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebuffer_ci.renderPass = m_renderPass;
-            framebuffer_ci.attachmentCount = static_cast<uint32_t>(attachments.size());
-            framebuffer_ci.pAttachments = attachments.data();
-            framebuffer_ci.width = ctx.m_swapchainExtent.width;
-            framebuffer_ci.height = ctx.m_swapchainExtent.height;
-            framebuffer_ci.layers = 1;
-
-            VK_CHECK_RESULT(vkCreateFramebuffer(ctx.m_device, &framebuffer_ci, nullptr, &m_swapchainFramebuffers[i]));
-        }
     }
 }

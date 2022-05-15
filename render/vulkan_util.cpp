@@ -81,7 +81,8 @@ namespace galaxysailing
                                  VkDeviceMemory &memory,
                                  VkImageCreateFlags image_create_flags,
                                  uint32_t array_layers,
-                                 uint32_t miplevels)
+                                 uint32_t miplevels,
+                                 VkSampleCountFlagBits samples)
     {
         VkImageCreateInfo image_create_info{};
         image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -96,7 +97,7 @@ namespace galaxysailing
         image_create_info.tiling = image_tiling;
         image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         image_create_info.usage = image_usage_flags;
-        image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+        image_create_info.samples = samples;
         image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         if (vkCreateImage(device, &image_create_info, nullptr, &image) != VK_SUCCESS)

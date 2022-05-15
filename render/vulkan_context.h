@@ -51,7 +51,7 @@ namespace galaxysailing
         VkImageView m_depthImageView = VK_NULL_HANDLE;
         VkDeviceMemory m_depthImageMemory = VK_NULL_HANDLE;
 
-        std::vector<VkFramebuffer> m_swapchainFrambuffers;
+        VkSampleCountFlags m_maxMSAASample;
 
         PFN_vkWaitForFences         fp_vkWaitForFences;
         PFN_vkResetFences           fp_vkResetFences;
@@ -114,7 +114,6 @@ namespace galaxysailing
         VkPresentModeKHR chooseSwapchainPresentModeFromDetails(std::vector<VkPresentModeKHR>& available_present_modes);
         VkExtent2D chooseSwapchainExtentFromDetails(VkSurfaceCapabilitiesKHR capabilities);
         VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-        
     };
 
 }

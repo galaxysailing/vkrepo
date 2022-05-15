@@ -126,13 +126,16 @@ namespace galaxysailing
             if (isDeviceSuitable(device.second))
             {
                 m_physicalDevice = device.second;
+                VkPhysicalDeviceProperties physical_device_properties;
+                vkGetPhysicalDeviceProperties(m_physicalDevice, &physical_device_properties);
+                
+                m_maxMSAASample = physical_device_properties.limits.framebufferColorSampleCounts 
+                    & physical_device_properties.limits.framebufferDepthSampleCounts;
                 break;
             }
         }
-
-        if(m_physicalDevice == VK_NULL_HANDLE){
-            assert(m_physicalDevice == VK_NULL_HANDLE);
-        }
+        
+        assert(m_physicalDevice != VK_NULL_HANDLE);
     }
 
     void VulkanContext::createLogicalDevice() {
@@ -227,7 +230,8 @@ namespace galaxysailing
                              m_depthImageMemory,
                              0,
                              1,
-                             1);
+                             1,
+                             VK_SAMPLE_COUNT_1_BIT);
                              
         m_depthImageView = VulkanUtil::createImageView(m_device
             , m_depthImage
@@ -472,8 +476,7 @@ namespace galaxysailing
 
         return indices.isComplete() 
             && extensionsSupported 
-            && swapChainAdequate 
-            && supportedFeatures.samplerAnisotropy;
+            && swapChainAdequate;
     }
 
 
