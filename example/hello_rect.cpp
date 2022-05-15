@@ -2,7 +2,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -347,6 +347,11 @@ private:
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
         vkDestroyRenderPass(device, renderPass, nullptr);
+
+        // --------------------clean up depth image ---------------------------
+        vkDestroyImage(device, depthImage, nullptr);
+        vkDestroyImageView(device, depthImageView, nullptr);
+        vkFreeMemory(device, depthImageMemory, nullptr);
 
         //----------------------clean up vulkan imageview----------------------------
         for (auto imageView : swapChainImageViews) {
@@ -804,8 +809,8 @@ private:
         //vertexInputInfo.vertexBindingDescriptionCount = 0;
         //vertexInputInfo.vertexAttributeDescriptionCount = 0;
         vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.vertexAttributeDescriptionCount = attriDesc.size();
         vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
+        vertexInputInfo.vertexAttributeDescriptionCount = attriDesc.size();
         vertexInputInfo.pVertexAttributeDescriptions = attriDesc.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -1428,6 +1433,7 @@ private:
         // `VK_SUBOPTIMAL_KHR`: The swap chain can still be used to successfully present to the surface
         //      , but the surface properties are no longer matched exactly.
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            // swapchain incompatible with the surface. Usually happens after a window resize.
             recreateSwapChain();
             return;
         }

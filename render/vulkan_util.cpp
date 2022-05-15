@@ -1,8 +1,13 @@
 #include "vulkan_util.h"
-
+#include "vulkan_context.h"
+#include <string>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 namespace galaxysailing
 {
-    uint32_t findMemoryType(VkPhysicalDevice physical_device,
+    uint32_t VulkanUtil::findMemoryType(VkPhysicalDevice physical_device,
                         uint32_t type_filter,
                         VkMemoryPropertyFlags properties_flag)
     {
@@ -17,6 +22,52 @@ namespace galaxysailing
             }
         }
         throw std::runtime_error("findMemoryType");
+    }
+    void VulkanUtil::createBuffer(VkPhysicalDevice physical_device,
+                      VkDevice device,
+                      VkDeviceSize size,
+                      VkBufferUsageFlags usage,
+                      VkMemoryPropertyFlags properties,
+                      VkBuffer &buffer,
+                      VkDeviceMemory &buffer_memory)
+    {
+        VkBufferCreateInfo buffer_create_info {};
+        buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_create_info.size = size;
+        buffer_create_info.usage = usage;                           // use as a vertex/staging/index buffer
+        buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // not sharing among queue families
+
+        VK_CHECK_RESULT(vkCreateBuffer(device, &buffer_create_info, nullptr, &buffer));
+
+        VkMemoryRequirements buffer_memory_requirements; // for allocate_info.allocationSize and
+                                                         // allocate_info.memoryTypeIndex
+        vkGetBufferMemoryRequirements(device, buffer, &buffer_memory_requirements);
+
+        VkMemoryAllocateInfo buffer_memory_allocate_info{};
+        buffer_memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        buffer_memory_allocate_info.allocationSize = buffer_memory_requirements.size;
+        buffer_memory_allocate_info.memoryTypeIndex =
+            VulkanUtil::findMemoryType(physical_device, buffer_memory_requirements.memoryTypeBits, properties);
+
+        VK_CHECK_RESULT(vkAllocateMemory(device, &buffer_memory_allocate_info, nullptr, &buffer_memory));
+
+        // bind buffer with buffer memory
+        vkBindBufferMemory(device, buffer, buffer_memory, 0); // offset = 0
+    }
+    void VulkanUtil::copyBuffer(class VulkanContext *context,
+                    VkBuffer srcBuffer,
+                    VkBuffer dstBuffer,
+                    VkDeviceSize srcOffset,
+                    VkDeviceSize dstOffset,
+                    VkDeviceSize size)
+    {
+        assert(context);
+        VkCommandBuffer command_buffer = context->beginSingleTimeCommand();
+
+        VkBufferCopy copyRegion = {srcOffset, dstOffset, size};
+        vkCmdCopyBuffer(command_buffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+        context->endSingleTimeCommand(command_buffer);
     }
     void VulkanUtil::createImage(VkPhysicalDevice physical_device,
                                  VkDevice device,
@@ -91,5 +142,56 @@ namespace galaxysailing
         VkImageView image_view;
         VK_CHECK_RESULT(vkCreateImageView(device, &image_view_create_info, nullptr, &image_view));
         return image_view;
+    }
+
+    std::vector<uint32_t> VulkanUtil::compileFile(const std::string &filename,
+                                       shaderc_shader_kind kind,
+                                       bool optimize)
+    {
+        static auto read_file = [](const std::string& fn) -> std::string {
+            std::ifstream fin(fn, std::ios::in | std::ios::binary);
+
+            if (!fin.is_open()) {
+                throw std::runtime_error("failed to open file!");
+            }
+            std::stringstream ss;
+            ss << fin.rdbuf();
+
+            return ss.str();
+        };
+        
+        std::string source = read_file(filename);
+
+        shaderc::Compiler compiler;
+        shaderc::CompileOptions options;
+
+        // Like -DMY_DEFINE=1
+        // options.AddMacroDefinition("MY_DEFINE", "1");
+        if (optimize){
+            options.SetOptimizationLevel(shaderc_optimization_level_size);
+        }
+
+        shaderc::SpvCompilationResult module =
+            compiler.CompileGlslToSpv(source, kind, filename.c_str(), options);
+
+        if (module.GetCompilationStatus() != shaderc_compilation_status_success)
+        {
+            // std::cerr << module.GetErrorMessage();
+            return std::vector<uint32_t>();
+        }
+
+        return {module.cbegin(), module.cend()};
+    }
+
+    VkShaderModule VulkanUtil::createShaderModule(VkDevice device, const std::vector<uint32_t>& code){
+        VkShaderModuleCreateInfo shader_module_ci{};
+        shader_module_ci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        shader_module_ci.codeSize = code.size() * 4;
+        shader_module_ci.pCode = code.data();
+
+        VkShaderModule shaderModule;
+        VK_CHECK_RESULT(vkCreateShaderModule(device, &shader_module_ci, nullptr, &shaderModule));
+
+        return shaderModule;
     }
 }

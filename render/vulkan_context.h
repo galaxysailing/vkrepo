@@ -30,6 +30,7 @@ namespace galaxysailing
     class VulkanContext
     {
     public:
+        GLFWwindow* m_window = nullptr;
         VkInstance m_instance = VK_NULL_HANDLE;
         VkSurfaceKHR m_surface = VK_NULL_HANDLE;
         VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -49,7 +50,6 @@ namespace galaxysailing
         VkImage m_depthImage = VK_NULL_HANDLE;
         VkImageView m_depthImageView = VK_NULL_HANDLE;
         VkDeviceMemory m_depthImageMemory = VK_NULL_HANDLE;
-        VkFormat m_depthImageFormat = VK_FORMAT_UNDEFINED;
 
         std::vector<VkFramebuffer> m_swapchainFrambuffers;
 
@@ -76,10 +76,13 @@ namespace galaxysailing
         
         void createSwapchain();
         void createSwapchainImageViews();
+        void createDepthResources();
         void clearSwapchain();
 
+        VkCommandBuffer beginSingleTimeCommand();
+        void endSingleTimeCommand(VkCommandBuffer cmd_buffer);
+
     private:
-        GLFWwindow* m_window = nullptr;
         void createInstance();
         void setupDebugMessenger();
         void createWindowSurface();
@@ -87,7 +90,6 @@ namespace galaxysailing
         void createLogicalDevice();
 
         void createCommandPool();
-        void createDepthResources();
 
     private:
         bool m_enableValidationLayer = true;
