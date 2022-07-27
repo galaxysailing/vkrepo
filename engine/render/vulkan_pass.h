@@ -15,6 +15,7 @@ namespace galaxysailing{
         struct TestUniform{
             alignas(16) glm::mat4 proj_view_model;
             alignas(16) glm::mat3 trans_inv_model;
+            alignas(16) glm::vec3 col;
         };
         void initialize(VulkanContext* context, VkDescriptorPool pool, int image_count){
             m_vkContext = context;
@@ -27,7 +28,7 @@ namespace galaxysailing{
                 m_uniformBuffers[i]->create<TestUniform>(&uniform, 1);
             }
             _createDescriptorSetLayout();
-            _createDescriptorSets(image_count);
+            _createDescriptorSets();
             _createRenderTextureResouces();
             _createRenderPass();
             _createPipeline();
@@ -38,7 +39,7 @@ namespace galaxysailing{
         void recreateFramebuffers();
     private:
         void _createDescriptorSetLayout();
-        void _createDescriptorSets(int image_count);
+        void _createDescriptorSets();
         void _createRenderTextureResouces();
         void _createRenderPass();
         void _createPipeline();

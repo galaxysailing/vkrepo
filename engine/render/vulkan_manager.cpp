@@ -52,7 +52,7 @@ namespace galaxysailing
         glm::mat4 model(1.0f), view(1.0f), projection(1.0);
         model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
-        angle += 0.01;
+        angle += 5;
         model = glm::scale(model, glm::vec3(0.7f, 0.7f, 0.7f));
         glm::vec3 eyepos(0.0f, 0.0f, 5.0f);
         glm::vec3 front(0.0f, 0.0f, -1.0f);
@@ -63,6 +63,13 @@ namespace galaxysailing
         projection[1][1] *= -1;
         uniform.proj_view_model = projection * view * model;
         uniform.trans_inv_model = glm::transpose(glm::inverse(glm::mat3(model)));
+        if(m_currentFrameIndex == 0){
+            uniform.col = glm::vec3(1,0,0);
+        }else if(m_currentFrameIndex == 1){
+            uniform.col = glm::vec3(0,1,0);
+        }else{
+            uniform.col = glm::vec3(0,0,1);
+        }
         m_testPass.updateUniform(uniform, image_index);
         auto& mesh_buffer = m_vulkanMeshBufferMap[render_id];
         int size = mesh_buffer.index_buffer->getSize();

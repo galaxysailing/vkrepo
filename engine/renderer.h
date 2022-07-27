@@ -1,0 +1,4 @@
+#ifndef _GALAXYSAILING_RENDERER_H_
+#define _GALAXYSAILING_RENDERER_H_
+
+#endif

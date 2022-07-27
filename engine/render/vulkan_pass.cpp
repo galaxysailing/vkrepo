@@ -48,7 +48,7 @@ namespace galaxysailing {
 
     void VulkanTestPass::updateUniform(TestUniform uniform, int image_index){
         
-        m_uniformBuffers[image_index]->update<TestUniform>(&uniform);
+        m_uniformBuffers[0]->update<TestUniform>(&uniform);
     }
 
     void VulkanTestPass::recreateFramebuffers(){
@@ -64,6 +64,7 @@ namespace galaxysailing {
         for(int i = 0; i < m_frambuffers.size(); ++i){
             vkDestroyFramebuffer(ctx.m_device, m_frambuffers[i], nullptr);
         }
+        _createRenderTextureResouces();
         _createFramebuffers();
     }
 
@@ -86,21 +87,21 @@ namespace galaxysailing {
         VK_CHECK_RESULT(vkCreateDescriptorSetLayout(ctx.m_device, &layout_info, nullptr, &m_descriptorSetLayout));
     }
 
-    void VulkanTestPass::_createDescriptorSets(int image_count){
+    void VulkanTestPass::_createDescriptorSets(){
         auto& ctx = *m_vkContext;
-        std::vector<VkDescriptorSetLayout> layouts(image_count, m_descriptorSetLayout);
+        std::vector<VkDescriptorSetLayout> layouts(ctx.m_swapchainImageViews.size(), m_descriptorSetLayout);
         VkDescriptorSetAllocateInfo alloc_info{};
         alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         alloc_info.descriptorPool = m_descriptorPool;
-        alloc_info.descriptorSetCount = static_cast<uint32_t>(image_count);
+        alloc_info.descriptorSetCount = layouts.size();
         alloc_info.pSetLayouts = layouts.data();
 
-        m_descriptorSets.resize(image_count);
+        m_descriptorSets.resize(ctx.m_swapchainImageViews.size());
         VK_CHECK_RESULT(vkAllocateDescriptorSets(ctx.m_device, &alloc_info, m_descriptorSets.data()));
 
-        for(size_t i = 0; i < image_count; ++i){
+        for(size_t i = 0; i < m_uniformBuffers.size(); ++i){
             VkDescriptorBufferInfo buffer_info{};
-            buffer_info.buffer = m_uniformBuffers[i]->getBuffer();
+            buffer_info.buffer = m_uniformBuffers[0]->getBuffer();
             buffer_info.offset = 0;
             buffer_info.range = sizeof(TestUniform);
 

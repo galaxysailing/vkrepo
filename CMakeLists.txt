@@ -5,10 +5,12 @@ project(vkrepo VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 17)
 
-include_directories(external/include/glfw-3.3.7)
-include_directories(external/include/glm-0.9.9.8)
-include_directories(external/include/vulkan-1.2.189.2)
-include_directories(common/)
+set(VKREPO_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
+include_directories(engine/external/include/glfw-3.3.7)
+include_directories(engine/external/include/glm-0.9.9.8)
+include_directories(engine/external/include/vulkan-1.2.189.2)
+include_directories(engine/common/)
 
 
 # if (NOT CMAKE_VERSION VERSION_LESS 3.7.0)
@@ -16,10 +18,9 @@ include_directories(common/)
 # 	find_package(Vulkan)
 # endif()
 
-# message(${CMAKE_SOURCE_DIR})
 IF (NOT Vulkan_FOUND)
-	find_library(Vulkan_LIBRARY NAMES vulkan-1 vulkan PATHS ${CMAKE_SOURCE_DIR}/external/lib/vulkan)
-	find_library(Shaderc_LIBRARY NAMES shaderc_shared shaderc PATHS ${CMAKE_SOURCE_DIR}/external/lib/vulkan)
+	find_library(Vulkan_LIBRARY NAMES vulkan-1 vulkan PATHS ${VKREPO_ROOT_DIR}/engine/external/lib/vulkan)
+	find_library(Shaderc_LIBRARY NAMES shaderc_shared shaderc PATHS ${VKREPO_ROOT_DIR}/engine/external/lib/vulkan)
 	IF (Vulkan_LIBRARY)
 		set(Vulkan_FOUND ON)
 	    MESSAGE("Using bundled Vulkan library version")
@@ -44,7 +45,7 @@ ELSE()
 ENDIF()
 
 IF (NOT Glfw3_FOUND)
-	find_library(Glfw3_LIBRARY NAMES libglfw3.a glfw3 PATHS ${CMAKE_SOURCE_DIR}/external/lib/glfw3)
+	find_library(Glfw3_LIBRARY NAMES libglfw3.a glfw3 PATHS ${VKREPO_ROOT_DIR}/engine/external/lib/glfw3)
 	IF (Glfw3_LIBRARY)
 		set(Glfw3_FOUND ON)
 	    MESSAGE("Using bundled glfw3 library version")
@@ -57,24 +58,12 @@ ELSE()
 	message(STATUS ${Glfw3_LIBRARY})
 ENDIF()
 
-set(VULKAN_SOURCE render/vulkan_context.cpp
-	render/vulkan_util.cpp
-	render/vulkan_manager.cpp
-	render/vulkan_pass.cpp
-	render/vulkan_buffer.cpp)
-set(VULKAN_HEADER render/vulkan_context.h
-	render/vulkan_util.h
-	render/vulkan_manager.h
-	render/vulkan_pass.h
-	render/vulkan_mesh.h
-	render/vulkan_buffer.h)
+file(GLOB_RECURSE VULKAN_SOURCE "${VKREPO_ROOT_DIR}/engine/render/*.cpp")
+file(GLOB_RECURSE VULKAN_HEADER "${VKREPO_ROOT_DIR}/engine/render/*.h")
 
 set(VKREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VK_RENDER_DIR "${VKREPO_DIR}/render")
 
-
-add_executable(hello_rect example/hello_rect.cpp)
-target_link_libraries(hello_rect ${Vulkan_LIBRARY} ${Glfw3_LIBRARY})
 
 add_executable(vk_render example/vk_render_test.cpp ${VULKAN_SOURCE} ${VULKAN_HEADER})
 target_link_libraries(vk_render ${Vulkan_LIBRARY} ${Glfw3_LIBRARY} ${Shaderc_LIBRARY})
