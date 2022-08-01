@@ -10,7 +10,7 @@ set(VKREPO_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories(engine/external/include/glfw-3.3.7)
 include_directories(engine/external/include/glm-0.9.9.8)
 include_directories(engine/external/include/vulkan-1.2.189.2)
-include_directories(engine/common/)
+include_directories(common/)
 
 
 # if (NOT CMAKE_VERSION VERSION_LESS 3.7.0)
@@ -65,7 +65,13 @@ set(VKREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VK_RENDER_DIR "${VKREPO_DIR}/render")
 
 
-add_executable(vk_render example/vk_render_test.cpp ${VULKAN_SOURCE} ${VULKAN_HEADER})
+add_executable(vk_render tests/vk_render_test.cpp ${VULKAN_SOURCE} ${VULKAN_HEADER})
 target_link_libraries(vk_render ${Vulkan_LIBRARY} ${Glfw3_LIBRARY} ${Shaderc_LIBRARY})
-# add_executable(vkrepo ${VULKAN_HEADER} ${VULKAN_SOURCE} main.cpp hello_rect.h)
-# target_link_libraries(vkrepo )
+
+add_executable(split_sum_approx tests/split_sum_approx.cpp ${VULKAN_SOURCE} ${VULKAN_HEADER})
+target_link_libraries(split_sum_approx ${Vulkan_LIBRARY} ${Glfw3_LIBRARY} ${Shaderc_LIBRARY})
+
+target_include_directories(
+  split_sum_approx
+  PUBLIC $<BUILD_INTERFACE:${VKREPO_ROOT_DIR}/engine>
+)
